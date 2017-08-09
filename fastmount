@@ -1,0 +1,81 @@
+#!/bin/bash
+# fastmount 0.1
+# by Adrian Sausenthaler
+
+# Usage
+if [ "${#}" -eq "0" ]; then
+	cat <<EOF
+General usage:
+	$0 <block device> [mountoptions]
+
+Mounts the filesystem in /dev/sda1:
+	$0 /dev/sda1
+
+Mounts the subvolume '@' of a btrfs filesystem read only:
+	$0 /dev/sda1 subvol=@,ro
+EOF
+	exit 0
+fi
+
+
+DEVFILE="$1"
+OPTIONS="$2"
+
+# Build a temp directory relative to the device.
+TMPDIR="/tmp/fastmount/${DEVFILE#/}"
+
+if [ $(mount | grep -c "$DEVFILE on") -eq "1" ]; then
+	echo "WARNING: $DEVFILE is already mounted"
+	WARNING="1"
+fi
+
+if [ $(mount | grep -c "on $TMPDIR") -eq "1" ]; then
+	echo "WARNING: Directory $TMPDIR is already mounted"
+	WARNING="1"
+fi
+
+# Is block device?
+if [ ! -b "$DEVFILE" ]; then
+	echo "WARNING: $DEVFILE is not a block device"
+	WARNING="1"
+fi
+
+# Got any warning?
+if [ ! -z "$WARNING" ]; then
+	read -p "Continue? (y/n) " -n 1 -r
+	echo
+	if [ "${REPLY,,}" != "y" ]; then
+		echo "Aborting."
+		exit 0
+	fi
+fi
+
+# Create TMPDIR
+if [ ! -d "$TMPDIR" ]; then
+	mkdir -p "$TMPDIR"
+fi
+
+# Options present?
+if [ -z "$OPTIONS" ]; then
+	echo "Mounting $DEVFILE on $TMPDIR"
+	mount "$DEVFILE" "$TMPDIR"
+else
+	echo "Mounting $DEVFILE on $TMPDIR with options $OPTIONS"
+	mount -o "$OPTIONS" "$DEVFILE" "$TMPDIR"
+fi
+
+# No Success?
+if [ "$?" -ne "0" ]; then
+	# Mount should have given enough information
+	exit 1
+fi
+
+# Visualise new bash session
+export PS1=$'\\[\E[36m\\]\\u@\\h\\[\E(B\E[m\\]:$PWD$ '
+echo "Entering new bash. Exit with Ctrl+D."
+
+# Start bash directly in mounted dir
+(cd "$TMPDIR" && /bin/bash --norc)
+
+echo "Exiting and unmounting..."
+umount "$TMPDIR"
