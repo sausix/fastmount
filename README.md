@@ -12,7 +12,7 @@ Just exit the session with Ctrl+D and the device gets unmounted automatically.
 
 
 General usage:
-	fastmount <block device> [mountoptions]
+	fastmount \<block device\> [mount options]
 
 Mounts the filesystem in /dev/sda1:
 	fastmount /dev/sda1
